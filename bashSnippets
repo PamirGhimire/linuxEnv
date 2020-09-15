@@ -1,0 +1,57 @@
+# mongodb
+alias mongo_list_listeners='sudo lsof -iTCP -sTCP:LISTEN -n -P'
+
+#git branch in bash prompt
+parse_git_branch() {
+     git branch 2> /dev/null | sed -e '/^[^*]/d' -e 's/* \(.*\)/ (\1)/'
+}
+export PS1="\u@\h \[\033[32m\]\w\[\033[33m\]\$(parse_git_branch)\[\033[00m\] $ "
+
+# fix pulseaudio
+alias fix_audio='rm -r /var/lib/gdm3/.config/pulse && pulseaudio --kill && pulseaudio --start'
+
+# clang-format this directory recursively (C++/C development)
+alias clang_format_repo='find ./ -iname *.h -o -iname *.cpp | xargs clang-format -i --style=LLVM'
+
+# free up disk space
+function tidy_disk {
+  # great one-liner
+    dpkg -l 'linux-*' | sed '/^ii/!d;/'"$(uname -r | sed "s/\(.*\)-\([^0-9]\+\)/\1/")"'/d;s/^[^ ]* [^ ]* \([^ ]*\).*/\1/;/[0-9]/!d' | xargs sudo apt-get -y purge
+
+    ## Show free space
+    df -Th | grep -v fs
+    # Will need English output for processing
+    LANG=en_GB.UTF-8
+
+    ## Clean apt cache
+    apt-get update
+    apt-get -f install
+    apt-get -y autoremove
+    apt-get clean
+
+    ## Remove old versions of snap packages
+    snap list --all | while read snapname ver rev trk pub notes; do
+        if [[ $notes = *disabled* ]]; then
+            snap remove "$snapname" --revision="$rev"
+        fi
+    done
+    ## Set snap versions retain settings
+    if [[ $(snap get system refresh.retain) -ne 2 ]]; then snap set system refresh.retain=2; fi
+    rm -f /var/lib/snapd/cache/*
+
+    ## Remove old versions of Linux Kernel
+    # This one-liner is deprecated since 18.04
+    # dpkg -l 'linux-*' | sed '/^ii/!d;/'"$(uname -r | sed "s/\(.*\)-\([^0-9]\+\)/\1/")"'/d;s/^[^ ]* [^ ]* \([^ ]*\).*/\1/;/[0-9]/!d' | xargs apt-get -y purge
+    # New 2 lines to remove old kernels
+    dpkg --list | grep 'linux-image' | awk '{ print $2 }' | sort -V | sed -n '/'"$(uname -r | sed "s/\([0-9.-]*\)-\([^0-9]\+\)/\1/")"'/q;p' | xargs apt-get -y purge
+    dpkg --list | grep 'linux-headers' | awk '{ print $2 }' | sort -V | sed -n '/'"$(uname -r | sed "s/\([0-9.-]*\)-\([^0-9]\+\)/\1/")"'/q;p' | xargs apt-get -y purge
+
+    ## Rotate and delete old logs
+    /etc/cron.daily/logrotate
+    find /var/log -type f -iname *.gz -delete
+    sudo journalctl --rotate
+    sudo journalctl --vacuum-time=1s
+
+    ## Show free space
+    df -Th | grep -v fs
+}
