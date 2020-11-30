@@ -13,6 +13,13 @@ alias fix_audio='rm -r /var/lib/gdm3/.config/pulse && pulseaudio --kill && pulse
 # clang-format this directory recursively (C++/C development)
 alias clang_format_repo='find ./ -iname *.h -o -iname *.cpp | xargs clang-format -i --style=LLVM'
 
+# unmet dependencies error when $apt-get install xyz
+function fix_unresolved_dependencies
+{
+  sudo rm /var/lib/dpkg/status
+  sudo touch /var/lib/dpkg/status
+}
+
 # free up disk space
 function tidy_disk {
   # great one-liner
